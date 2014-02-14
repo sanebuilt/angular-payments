@@ -1,89 +1,97 @@
-angular.module('angularPayments')
+/*global angular */
 
-.directive('stripeForm', ['$window', '$parse', 'Common', function($window, $parse, Common) {
-    
-  // directive intercepts form-submission, obtains Stripe's cardToken using stripe.js
-  // and then passes that to callback provided in stripeForm, attribute.
+(function () {
+    'use strict';
 
-  // data that is sent to stripe is filtered from scope, looking for valid values to
-  // send and converting camelCase to snake_case, e.g expMonth -> exp_month
+    angular.module('angularPayments')
+
+        .directive('stripeForm', ['$window', '$parse', 'Common', function ($window, $parse, Common) {
+
+            // directive intercepts form-submission, obtains Stripe's cardToken using stripe.js
+            // and then passes that to callback provided in stripeForm, attribute.
+
+            // data that is sent to stripe is filtered from scope, looking for valid values to
+            // send and converting camelCase to snake_case, e.g expMonth -> exp_month
 
 
-  // filter valid stripe-values from scope and convert them from camelCase to snake_case
-  _getDataToSend = function(data){
-           
-    var possibleKeys = ['number', 'expMonth', 'expYear', 
-                    'cvc', 'name','addressLine1', 
+            // filter valid stripe-values from scope and convert them from camelCase to snake_case
+            var _getDataToSend = function (data) {
+
+                var possibleKeys = [
+                    'number', 'expMonth', 'expYear',
+                    'cvc', 'name', 'addressLine1',
                     'addressLine2', 'addressCity',
                     'addressState', 'addressZip',
-                    'addressCountry']
-    
-    var camelToSnake = function(str){
-      return str.replace(/([A-Z])/g, function(m){
-        return "_"+m.toLowerCase();
-      });
-    }
+                    'addressCountry'
+                ];
 
-    var ret = {};
+                var camelToSnake = function (str) {
+                    return str.replace(/([A-Z])/g, function (m) {
+                        return "_" + m.toLowerCase();
+                    });
+                };
 
-    for(i in possibleKeys){
-        if(possibleKeys.hasOwnProperty(i)){
-            ret[camelToSnake(possibleKeys[i])] = angular.copy(data[possibleKeys[i]]);
-        }
-    }
+                var ret = {};
 
-    ret['number'] = (ret['number'] || '').replace(/ /g,'');
+                for (var i = 0; i < possibleKeys.length; i++) {
+                    if (possibleKeys.hasOwnProperty(i)) {
+                        ret[camelToSnake(possibleKeys[i])] = angular.copy(data[possibleKeys[i]]);
+                    }
+                }
 
-    return ret;
-  }
+                ret.number = (ret.number || '').replace(/ /g,'');
 
-  return {
-    restrict: 'A',
-    link: function(scope, elem, attr) {
+                return ret;
+            }
 
-      if(!$window.Stripe){
-          throw 'stripeForm requires that you have stripe.js installed. Include https://js.stripe.com/v2/ into your html.';
-      }
+            return {
+                restrict: 'A',
+                link: function(scope, elem, attr) {
 
-      var form = angular.element(elem);
+                    if (!$window.Stripe) {
+                        throw 'stripeForm requires that you have stripe.js installed. Include https://js.stripe.com/v2/ into your html.';
+                    }
 
-      form.bind('submit', function() {
+                    var form = angular.element(elem);
 
-        expMonthUsed = scope.expMonth ? true : false;
-        expYearUsed = scope.expYear ? true : false;
+                    form.bind('submit', function() {
 
-        if(!(expMonthUsed && expYearUsed)){
-          exp = Common.parseExpiry(scope.expiry)
-          scope.expMonth = exp.month
-          scope.expYear = exp.year
-        }
+                        var expMonthUsed = scope.expMonth ? true : false;
+                        var expYearUsed = scope.expYear ? true : false;
 
-        var button = form.find('button');
-        button.prop('disabled', true);
+                        if (!(expMonthUsed && expYearUsed)) {
+                            var exp = Common.parseExpiry(scope.expiry)
+                            scope.expMonth = exp.month
+                            scope.expYear = exp.year
+                        }
 
-        if(form.hasClass('ng-valid')) {
-          
+                        var button = form.find('button');
+                        button.prop('disabled', true);
 
-          $window.Stripe.createToken(_getDataToSend(scope), function() {
-            var args = arguments;
-            scope.$apply(function() {
-              scope[attr.stripeForm].apply(scope, args);
-            });
-            button.prop('disabled', false);
+                        if (form.hasClass('ng-valid')) {
 
-          });
 
-        } else {
-          scope.$apply(function() {
-            scope[attr.stripeForm].apply(scope, [400, {error: 'Invalid form submitted.'}]);
-          });
-          button.prop('disabled', false);
-        }
+                            $window.Stripe.createToken(_getDataToSend(scope), function () {
+                                var args = arguments;
+                                scope.$apply(function () {
+                                    scope[attr.stripeForm].apply(scope, args);
+                                });
+                                button.prop('disabled', false);
 
-        scope.expiryMonth = expMonthUsed ? scope.expMonth : null;
-        scope.expiryYear = expYearUsed ? scope.expMonth : null;
+                            });
 
-      });
-    }
-  }
-}])
+                        } else {
+                            scope.$apply(function () {
+                                scope[attr.stripeForm].apply(scope, [400, {error: 'Invalid form submitted.'}]);
+                            });
+                            button.prop('disabled', false);
+                        }
+
+                        scope.expiryMonth = expMonthUsed ? scope.expMonth : null;
+                        scope.expiryYear = expYearUsed ? scope.expMonth : null;
+
+                    });
+                }
+            }
+        }]);
+}());
